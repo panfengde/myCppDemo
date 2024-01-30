@@ -1,8 +1,9 @@
 #include <iostream>
 // #include "variant/variant.cpp"
-// #include "memory/memory1.cpp"
-// #include "memory/memory2.cpp"
-#include "memory/memory3.cpp"
+// #include "NewInBuffer/memory1.cpp"
+// #include "NewInBuffer/memory2.cpp"
+// #include "NewInBuffer/memory3.cpp"
+#include "NewInBuffer/memory4.cpp"
 
 int main() {
 
@@ -10,8 +11,9 @@ int main() {
     // testVariant();
     // testMemory();
     // testMemory2();
-    normalNewTest();
-    specialNewTest();
+    // normalNewTest();
+    // specialNewTest();
+    useSpecialNew();
     std::cout << "Hello, World!" << std::endl;
     return 0;
 }
