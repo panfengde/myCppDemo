@@ -170,7 +170,7 @@ void specialNewTest() {
     for (int i = 0; i < batchNumbers; i++) {
         alignas(std::max_align_t) char* aNewBuffer = new char[aBufferSize];
         std::memcpy(aNewBuffer, sourceBuffer, aBufferSize);
-        //bufferStore.push_back(aNewBuffer);
+        // bufferStore.push_back(aNewBuffer);
         delete[] aNewBuffer;
     }
     // for (auto one: bufferStore) {
