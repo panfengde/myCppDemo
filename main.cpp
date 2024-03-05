@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cassert>    // assert()
 #include <ctime>      // clock()
+#include <vector>
 
 // #include "variant/variant.cpp"
 // #include "NewInBuffer/memory1.cpp"
@@ -13,11 +14,14 @@
 #include "MemoryPool/MemoryPool.h"
 #include "MemoryPool/StackAlloc.h"
 #include "MyMemoryPool/MyMemoryPool.h"
+#include "MyMemoryPool/test.cpp"
 
 // 插入元素个数
 #define ELEMS 100
 // 重复次数
 #define REPS 2
+
+
 
 struct TestObj {
     std::string name;
@@ -31,56 +35,7 @@ struct TestObj {
 
 
 int main() {
-    clock_t start;
-    MyMemoryPool<TestObj> test;
-    start = clock();
-    for (int i = 0; i < 33; i++) {
-        new(test.allocate())TestObj({"name:" + std::to_string(i), "xxxxxx"});
-    }
-    test.showAvailable();
-
-    for (int i = 0; i < 5; i++) {
-        test.deallocate(test.memory[1] + i * sizeof(TestObj));
-        test.deallocate(test.memory[2] + i * sizeof(TestObj));
-        test.deallocate(test.memory[3] + i * sizeof(TestObj));
-    }
-
-
-    test.showAvailable();
-    test.freeIdleBuffer();
-    test.showAvailable();
-
-    std::cout << "use Time: ";
-    std::cout << (((double)clock() - start) / CLOCKS_PER_SEC) << "\n\n";
-    std::cout << "Hello, World!" << std::endl;
-    return 0;
-}
-
-int main_3() {
-    clock_t start;
-    MyMemoryPool<TestObj> test;
-    start = clock();
-    for (int i = 0; i < 20; i++) {
-        new(test.allocate())TestObj({"name:" + std::to_string(i), "xxxxxx"});
-    }
-    test.showAvailable();
-    test.deallocate(test.memory[0]);
-    test.showAvailable();
-    test.deallocate(test.memory[1]);
-
-    // //std::cout << (reinterpret_cast<TestObj *>(test.memory[0]))->name << std::endl;
-    // for (int i = 0; i < 5; i++) {
-    //     std::cout << (test.memory[0] + i * sizeof(TestObj))->name << std::endl;
-    // }
-    test.showAvailable();
-    new(test.allocate())TestObj({"xxx", "xxxxxx"});
-    test.showAvailable();
-    new(test.allocate())TestObj({"pppp", "xxxxxx"});
-    test.showAvailable();
-    std::cout << "use Time: ";
-    std::cout << (((double)clock() - start) / CLOCKS_PER_SEC) << "\n\n";
-
-    std::cout << "Hello, World!" << std::endl;
+    test();
     return 0;
 }
 
