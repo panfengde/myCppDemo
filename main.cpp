@@ -10,12 +10,12 @@
 // #include "NewInBuffer/memory4.cpp"
 //#include "NewInBuffer/memory5.cpp"
 // #include "NewInBuffer/memory6.cpp"
-#include "CustomAllocator/index.cpp"
+#include "CustomAllocator/myString.cpp"
 
 
 
 int main() {
-    test();
+    testMystring();
     return 0;
 }
 
