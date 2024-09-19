@@ -15,7 +15,7 @@
 
 
 int main() {
-    testMystring();
+    goTest();
     return 0;
 }
 
