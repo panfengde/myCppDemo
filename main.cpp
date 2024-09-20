@@ -15,7 +15,7 @@
 
 
 int main() {
-    goTest();
+    performanceTest();
     return 0;
 }
 
