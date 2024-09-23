@@ -11,12 +11,12 @@
 //#include "NewInBuffer/memory5.cpp"
 // #include "NewInBuffer/memory6.cpp"
 #include "CustomAllocator/myString.cpp"
+//#include "CustomAllocator/test.cpp"
 
 
-
-int main() {
-    performanceTest();
+int main()
+{
+    std::cout << "123" << std::endl;
+    goTest();
     return 0;
 }
-
-

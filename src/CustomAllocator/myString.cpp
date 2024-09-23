@@ -31,11 +31,11 @@ std::string generateRandomString(size_t length)
 class mBase;
 class myString;
 class myObj;
+class myFrame;
 class ManualBuffer;
 
 std::vector<std::vector<std::string>> allKeys;
 std::vector<std::vector<size_t>> allValues;
-
 
 class ManualBuffer
 {
@@ -43,7 +43,7 @@ public:
     ManualBuffer() : offset(0)
     {
         // 初始化缓冲区，预分配 1 MB
-        //buffer.resize(1024 * 1024);
+        // buffer.resize(1024 * 1024);
     }
 
     char* allocate(size_t needDataSize)
@@ -78,11 +78,13 @@ public:
         auto* newBuffer = new ManualBuffer();
         newBuffer->offset = offset;
         newBuffer->buffer = buffer; // 直接复制 vector，避免手动复制
+        newBuffer->bufferOffset = bufferOffset;
         return newBuffer;
     }
 
     std::vector<char> buffer; // 使用 std::vector 代替裸指针
     size_t offset; // 当前偏移
+    size_t bufferOffset = 0; // 当前buffer相对于原始buffer的偏移
 };
 
 class mBase
@@ -131,27 +133,80 @@ public:
 class myObj : public mBase
 {
 public:
-    size_t keyValueIndex = 0;
+    std::vector<std::string>* Keys = nullptr;
+    std::vector<size_t>* ValuesOffset = nullptr;
+    size_t dataBufferOffest = 0;
 
     ~myObj() = default;
 
     myObj()
     {
         type = 2;
-        allKeys.emplace_back();
-        allValues.emplace_back();
-        keyValueIndex = allKeys.size() - 1;
+        Keys = new std::vector<std::string>({});
+        ValuesOffset = new std::vector<size_t>({});
     }
 
-    void insertKeyValue(std::string key, size_t valueOffset) const
+    void insertKeyValue(std::string key, size_t aValueOffset)
     {
-        allKeys[keyValueIndex].push_back(key);
-        allValues[keyValueIndex].push_back(valueOffset);
+        Keys->push_back(key);
+        ValuesOffset->push_back(aValueOffset);
+    }
+
+    void writeToBuffer(ManualBuffer* bufferStore)
+    {
+        dataBufferOffest = bufferStore->offset;
+
+        size_t totalSize = sizeof(size_t) + ValuesOffset->size() * sizeof(size_t);
+        for (const auto& key : *Keys)
+        {
+            totalSize += sizeof(size_t) + key.size(); // 保存每个字符串的大小和内容
+        }
+        auto ptr = bufferStore->allocate(totalSize);
+
+        auto offsetSize = ValuesOffset->size();
+        memcpy(ptr, &offsetSize, sizeof(size_t));
+        ptr += sizeof(size_t);
+        memcpy(ptr, ValuesOffset->data(), ValuesOffset->size() * sizeof(size_t));
+        ptr += ValuesOffset->size() * sizeof(size_t);
+
+        for (const auto& key : *Keys)
+        {
+            size_t keySize = key.size();
+            memcpy(ptr, &keySize, sizeof(size_t));
+            ptr += sizeof(size_t);
+            memcpy(ptr, key.data(), keySize);
+            ptr += keySize;
+        }
+    }
+
+    void readFromBuffer(ManualBuffer* bufferStore)
+    {
+        const char* ptr = bufferStore->buffer.data() + dataBufferOffest;
+
+        // 读取ValuesOffset
+        size_t offsetSize;
+        memcpy(&offsetSize, ptr, sizeof(size_t));
+        ptr += sizeof(size_t);
+        ValuesOffset->resize(offsetSize);
+        memcpy(ValuesOffset->data(), ptr, offsetSize * sizeof(size_t));
+        ptr += offsetSize * sizeof(size_t);
+
+        // 读取keys
+        Keys->clear();
+        for (size_t i = 0; i < offsetSize; ++i)
+        {
+            size_t keySize;
+            memcpy(&keySize, ptr, sizeof(size_t)); // 读取字符串大小
+            ptr += sizeof(size_t);
+            std::string key(ptr, keySize); // 读取字符串内容
+            Keys->push_back(std::move(key));
+            ptr += keySize;
+        }
     }
 
     void sayHello() const
     {
-        std::cout << keyValueIndex << std::endl;
+        std::cout << Keys->size() << std::endl;
     }
 
     void getValueByName(std::string& key, mBase* value) const
@@ -159,12 +214,12 @@ public:
     }
 };
 
-
 class myFrame : public myObj
 {
 public:
-    size_t bufferStart = 0;
-    size_t bufferEnd = 0;
+    size_t startBuffer = 0;
+    size_t endBuffer = 0;
+
     myFrame() = default;
 
     explicit myFrame(ManualBuffer* bufferStore)
@@ -173,15 +228,31 @@ public:
         type = 3;
     }
 
-    inline void markStart(ManualBuffer* aManualBuffer)
+    inline void markStart(ManualBuffer* bufferStore)
     {
-        bufferStart = aManualBuffer->offset;
+        startBuffer = bufferStore->offset;
     }
 
-    inline void markEnd(ManualBuffer* aManualBuffer)
+    inline void markEnd(ManualBuffer* bufferStore)
     {
-        bufferEnd = aManualBuffer->offset;
+        writeToBuffer(bufferStore);
+        endBuffer = bufferStore->offset;
     }
+
+    myFrame* clone(ManualBuffer* bufferStore)
+    {
+        // if (startOffset >= endOffset || endOffset > buffer.size())
+        // {
+        //     throw std::out_of_range("Invalid offset range");
+        // }
+
+        auto* newBuffer = new ManualBuffer();
+        newBuffer->bufferOffset = startBuffer;
+        newBuffer->buffer = std::vector<char>(bufferStore->buffer.begin() + startBuffer,
+                                              bufferStore->buffer.begin() + endBuffer);
+        newBuffer->offset = newBuffer->buffer.size() - 1;
+        return reinterpret_cast<myFrame*>(newBuffer);
+    };
 };
 
 size_t createAFrame(ManualBuffer* bufferStore)
@@ -222,17 +293,25 @@ size_t createAObj(ManualBuffer* bufferStore)
     return reinterpret_cast<const char*>(aObj) - bufferStore->GetData();
 }
 
+template <class T>
+T* getPtr(size_t offset, ManualBuffer* aManualBuffer)
+{
+    return reinterpret_cast<T*>(aManualBuffer->GetData() + aManualBuffer->bufferOffset + offset);
+}
+
 int dev()
 {
     auto bufferStore = new ManualBuffer();
     std::vector<size_t> allOffset;
+    std::vector<size_t> frameOffset;
+
+    auto aframeOffset = createAFrame(bufferStore);
+    frameOffset.push_back(aframeOffset);
 
     for (int i = 0; i < 2000; i++)
     {
-        //std::cout <<  std::string("abcdefg" + std::to_string(i)) << std::endl;
-        //auto aString = std::string("abcdefg" + std::to_string(i)).c_str();
-        auto frameOffset = createAFrame(bufferStore);
-        allOffset.push_back(frameOffset);
+        auto aframeOffset = createAFrame(bufferStore);
+        frameOffset.push_back(aframeOffset);
 
         auto aString = generateRandomString(10).c_str();
         allOffset.push_back(createAStr(bufferStore, aString));
@@ -244,23 +323,30 @@ int dev()
         auto createAStringResult_2 = createAStr(bufferStore, "456");
 
         auto thisPtr = bufferStore->GetData() + createAObjResult;
-        auto thisObj = reinterpret_cast<const myObj*>(thisPtr);
+        auto thisObj = reinterpret_cast<myObj*>(thisPtr);
         //std::cout << thisObj->keyValueIndex << std::endl;
         thisObj->insertKeyValue("a", createAStringResult_1);
         thisObj->insertKeyValue("b", createAStringResult_2);
+        thisObj->writeToBuffer(bufferStore);
 
-        auto aFrame = reinterpret_cast<myFrame*>(bufferStore->GetData() + frameOffset);
+        auto aFrame = getPtr<myFrame>(aframeOffset, bufferStore);
         aFrame->markEnd(bufferStore);
     }
 
-    std::cout << "ok---" << std::endl;
+    getPtr<myFrame>(aframeOffset, bufferStore)->markEnd(bufferStore);
+
+    for (auto& oneFrameOffset : frameOffset)
+    {
+        auto aFrame = getPtr<myFrame>(oneFrameOffset, bufferStore);
+        auto aNewbufferStore = aFrame->clone(bufferStore);
+    }
 
     auto newBufferStore1 = bufferStore->clone();
     auto newBufferStore = newBufferStore1->clone();
 
     for (int i = 0; i < 2000; i += 100)
     {
-        std::cout << "offset:" << allOffset[i] << std::endl;
+        //std::cout << "offset:" << allOffset[i] << std::endl;
         auto thisPtr = newBufferStore->GetData() + allOffset[i];
         if (reinterpret_cast<const mBase*>(thisPtr)->type == 1)
         {
@@ -268,7 +354,7 @@ int dev()
         }
         else if (reinterpret_cast<const mBase*>(thisPtr)->type == 2)
         {
-            std::cout << "obj value:" << reinterpret_cast<const myObj*>(thisPtr)->keyValueIndex << std::endl;
+            std::cout << "obj value:" << reinterpret_cast<const myObj*>(thisPtr)->Keys->size() << std::endl;
         }
 
         auto nextPtr = newBufferStore->GetData() + allOffset[i + 1];
@@ -278,7 +364,7 @@ int dev()
         }
         else if (reinterpret_cast<const mBase*>(nextPtr)->type == 2)
         {
-            std::cout << "obj value:" << reinterpret_cast<const myObj*>(nextPtr)->keyValueIndex << std::endl;
+            std::cout << "obj value:" << reinterpret_cast<const myObj*>(nextPtr)->Keys->size() << std::endl;
         }
     }
 
@@ -306,7 +392,7 @@ int testBuffer()
 
 
     START_TIMER("buffer");
-    for (int k = 0; k < 100; k++)
+    for (int k = 0; k < 10000; k++)
     {
         auto newBufferStore1 = bufferStore->clone();
         delete newBufferStore1;
@@ -314,17 +400,12 @@ int testBuffer()
     STOP_TIMER("buffer");
     return 0;
 }
-__attribute__((optimize("O0")))
-void xxx()
-{
-
-}
 
 __attribute__((optimize("O0")))
 void testNew()
 {
     START_TIMER("new");
-    for (int k = 0; k < 100; k++)
+    for (int k = 0; k < 10000; k++)
     {
         for (int i = 0; i < 10000; i++)
         {
@@ -350,3 +431,9 @@ void performanceTest()
     testBuffer();
     showTimeMNap();
 }
+
+class will2Buffer
+{
+public:
+    std::vector<std::string> data;
+};
