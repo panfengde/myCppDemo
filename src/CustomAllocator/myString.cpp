@@ -40,8 +40,8 @@ T *getPtr(size_t offset, ManualBuffer *aManualBuffer) {
 class ManualBuffer {
 public:
     ManualBuffer() : offset(0) {
-        // 初始化缓冲区，预分配 1 MB
-        // buffer.resize(1024 * 1024);
+        // buffer.resize(1024 * 1024);// 初始化缓冲区，预分配 1 MB
+        buffer.resize(1024); // 初始化缓冲区，预分配 1 B
     }
 
     ~ManualBuffer() = default;
@@ -49,7 +49,7 @@ public:
     char *allocate(size_t needDataSize) {
         if (offset + needDataSize > buffer.size()) {
             // 增加缓冲区容量
-            size_t newCapacity = (buffer.size() + needDataSize); // 扩容策略
+            size_t newCapacity = 2 * (buffer.size() + needDataSize); // 扩容策略
             //std::cout << "add---" << std::endl;
             buffer.resize(newCapacity);
         }
@@ -66,6 +66,13 @@ public:
     // 获取buffer大小
     size_t GetSize() const {
         return offset;
+    }
+
+    void shrink_to_fit() {
+        if (offset < buffer.size()) {
+            buffer.resize(offset);
+            buffer.shrink_to_fit();
+        }
     }
 
     // 克隆方法
@@ -317,6 +324,7 @@ int dev() {
     }
 
     getPtr<myFrame>(topFrameOffset, bufferStore)->markEnd(bufferStore);
+    bufferStore->shrink_to_fit();
 
     for (auto &oneFrameOffset: frameOffset) {
         auto aFrame = getPtr<myFrame>(oneFrameOffset, bufferStore);
