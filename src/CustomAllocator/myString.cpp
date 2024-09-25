@@ -255,10 +255,6 @@ public:
         type = 1;
     };
 
-    myString(std::string strValue)
-    {
-        type = 1;
-    };
 
     myString(const char* cStr, ManualBuffer* bufferStore)
     {
@@ -327,7 +323,7 @@ size_t createAFrame(ManualBuffer* bufferStore)
 size_t createAStr(ManualBuffer* bufferStore, const char* cStr)
 {
     // 计算字符串长度
-    auto aStr = new(bufferStore->allocate(sizeof(myString))) myString(cStr, bufferStore);
+    auto aStr = new(bufferStore->allocate(sizeof(myString) + strlen(cStr) + 1)) myString(cStr, bufferStore);
     // 返回 aStr 相对于 bufferStore->buffer 的偏移量
     auto offset = reinterpret_cast<const char*>(aStr) - bufferStore->GetData();
     stringOffset.push_back(offset);
@@ -456,7 +452,7 @@ int dev()
     int stringIndex = 0;
     auto topFrameOffset = createAFrame(bufferStore);
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 200; i++)
     {
         createData(bufferStore);
     }
@@ -560,10 +556,10 @@ void testNew()
         for (int i = 0; i < 10000; i++)
         {
             auto a = new std::string("1231231");
-            auto b = new myString("12");
+            // auto b = new myString("12");
             auto c = new myObj();
             delete a;
-            delete b;
+            //delete b;
             delete c;
         }
     }
