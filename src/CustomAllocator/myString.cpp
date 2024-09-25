@@ -8,6 +8,7 @@
 #include <vector>
 #include <random>
 #include "timeCountMacro.h"
+#include <fstream>
 
 std::string generateRandomString(size_t length)
 {
@@ -338,7 +339,6 @@ size_t createAStr(ManualBuffer* bufferStore, std::string strValue)
     return createAStr(bufferStore, cStr);
 }
 
-
 size_t createAObj(ManualBuffer* bufferStore)
 {
     auto aObj = new(bufferStore->allocate(sizeof(myObj))) myObj();
@@ -384,6 +384,7 @@ void prinFrame(size_t objOffset, ManualBuffer* aManualBuffer)
     frameLevel++;
     std::cout << frameLevel << "*********frame info*********start***" << std::endl;
     auto aFrame = getPtr<myFrame>(objOffset, aManualBuffer);
+
     aFrame->readFromBuffer(aManualBuffer);
 
     for (int i = 0; i < aFrame->Keys->size(); i++)
@@ -411,8 +412,9 @@ void prinFrame(size_t objOffset, ManualBuffer* aManualBuffer)
 }
 
 int stringIndex = 0;
+int insertFrameIndex = 0;
 
-void createData(ManualBuffer* bufferStore)
+void createData(ManualBuffer* bufferStore, size_t topFrameOffset)
 {
     createAStr(bufferStore, std::string("aString_") + std::to_string(++stringIndex));
     createAStr(bufferStore, std::string("aString_") + std::to_string(++stringIndex));
@@ -431,6 +433,9 @@ void createData(ManualBuffer* bufferStore)
     auto fiveStringOffest = createAStr(bufferStore, std::string("aString_") + std::to_string(++stringIndex));
     auto sixStringOffest = createAStr(bufferStore, std::string("aString_") + std::to_string(++stringIndex));
     auto aFrame = getPtr<myFrame>(aframeOffset, bufferStore);
+    auto topFrame = getPtr<myFrame>(topFrameOffset, bufferStore);
+    topFrame->insertKeyValue(std::string("___^^^^^^^_____frame_") + std::to_string(++insertFrameIndex), aframeOffset);
+
     aFrame->insertKeyValue(std::string("frame_var_1"), fiveStringOffest);
     aFrame->insertKeyValue(std::string("frame_var_2"), sixStringOffest);
 
@@ -445,6 +450,75 @@ void createData(ManualBuffer* bufferStore)
     aFrame->markEnd(bufferStore);
 }
 
+void writeVectorToFile(ManualBuffer* aManualBuffer, const std::string& filename)
+{
+    const std::vector<char>& vec = aManualBuffer->buffer;
+    std::ofstream file(filename, std::ios::out | std::ios::binary);
+    if (file.is_open())
+    {
+        // 写入整个 vector 数据到文件中
+        file.write(reinterpret_cast<const char*>(vec.data()), vec.size());
+        file.close();
+    }
+    else
+    {
+        std::cerr << "无法打开文件进行写入: " << filename << std::endl;
+    }
+}
+
+ManualBuffer* readVectorFromFile(const std::string& filename)
+{
+    std::ifstream file(filename, std::ios::in | std::ios::binary);
+
+    auto aManualBuffer = new ManualBuffer();
+    auto& vec = aManualBuffer->buffer;
+    if (file.is_open())
+    {
+        // 获取文件大小
+        file.seekg(0, std::ios::end);
+        std::streamsize size = file.tellg();
+        file.seekg(0, std::ios::beg);
+
+        // 调整 vector 大小并读取文件内容
+        vec.resize(size);
+        file.read(vec.data(), size);
+        file.close();
+    }
+    else
+    {
+        std::cerr << "无法打开文件进行读取: " << filename << std::endl;
+    }
+
+    return aManualBuffer;
+}
+
+void readBufferFromFile()
+{
+    auto bufferStore = readVectorFromFile("/Users/panfeng/coder/myProject/CppDemo/src/CustomAllocator/dist/testBuffer");
+    prinFrame(0, bufferStore);
+}
+
+void writeBufferToFile()
+{
+    auto bufferStore = new ManualBuffer();
+    int stringIndex = 0;
+    auto topFrameOffset = createAFrame(bufferStore);
+
+    for (int i = 0; i < 10; i++)
+    {
+        createData(bufferStore, 0);
+    }
+
+    getPtr<myFrame>(topFrameOffset, bufferStore)->markEnd(bufferStore);
+    bufferStore->shrink_to_fit();
+
+    // auto newBufferStore_1 = bufferStore->clone();
+    // auto newBufferStore_2 = newBufferStore_1->clone();
+    // delete bufferStore;
+    // delete newBufferStore_1;
+
+    writeVectorToFile(bufferStore, "/Users/panfeng/coder/myProject/CppDemo/src/CustomAllocator/dist/testBuffer");
+}
 
 int dev()
 {
@@ -454,7 +528,7 @@ int dev()
 
     for (int i = 0; i < 200; i++)
     {
-        createData(bufferStore);
+        createData(bufferStore, 0);
     }
 
     getPtr<myFrame>(topFrameOffset, bufferStore)->markEnd(bufferStore);
@@ -465,6 +539,7 @@ int dev()
     delete bufferStore;
     delete newBufferStore_1;
 
+    writeVectorToFile(newBufferStore_2, "/Users/panfeng/coder/myProject/CppDemo/src/CustomAllocator/dist/testBuffer");
     for (auto& aStringOffset : stringOffset)
     {
         auto aStringPtr = getPtr<myString>(aStringOffset, newBufferStore_2);
@@ -519,6 +594,7 @@ int dev()
     return 0;
 }
 
+
 __attribute__((optimize("O0")))
 int testBuffer()
 {
@@ -569,7 +645,9 @@ void testNew()
 void goTest()
 {
     START_TIMER("new");
-    dev();
+    //dev();
+    //writeBufferToFile();
+    readBufferFromFile();
     STOP_TIMER("new");
     showTimeMNap();
 }
