@@ -10,13 +10,14 @@
 // #include "NewInBuffer/memory4.cpp"
 //#include "NewInBuffer/memory5.cpp"
 // #include "NewInBuffer/memory6.cpp"
-#include "CustomAllocator/myString.cpp"
+//#include "CustomAllocator/myString.cpp"
 //#include "CustomAllocator/test.cpp"
-
+#include "stringTest/test.cpp"
 
 int main()
 {
-    std::cout << "123" << std::endl;
-    goTest();
+    testStackBufferString();
+    std::cout << "end" << std::endl;
+    // goTest();
     return 0;
 }

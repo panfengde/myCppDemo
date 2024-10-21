@@ -7,4 +7,5 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 include_directories(./src)
 
-add_executable(CppDemo main.cpp)
+add_executable(CppDemo main.cpp
+        )
