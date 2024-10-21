@@ -40,7 +40,6 @@ class myObj;
 class myFrame;
 class ManualBuffer;
 
-
 class ManualBuffer
 {
 public:
@@ -540,6 +539,7 @@ int dev()
     delete newBufferStore_1;
 
     writeVectorToFile(newBufferStore_2, "/Users/panfeng/coder/myProject/CppDemo/src/CustomAllocator/dist/testBuffer");
+
     for (auto& aStringOffset : stringOffset)
     {
         auto aStringPtr = getPtr<myString>(aStringOffset, newBufferStore_2);
@@ -593,7 +593,6 @@ int dev()
 
     return 0;
 }
-
 
 __attribute__((optimize("O0")))
 int testBuffer()
@@ -658,9 +657,3 @@ void performanceTest()
     testBuffer();
     showTimeMNap();
 }
-
-class will2Buffer
-{
-public:
-    std::vector<std::string> data;
-};
